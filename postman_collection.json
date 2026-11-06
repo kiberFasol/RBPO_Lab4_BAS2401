@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "lab3-var22-dormitory",
-    "name": "Лабораторная работа 3 (Вариант 22) - Распределение мест в общежитии",
-    "description": "Полная коллекция запросов: CRUD-операции по всем 5 сущностям и 5 сквозных транзакционных бизнес-операций со сценариями изменения состояния.",
+    "name": "Лабораторная работа 4 (Вариант 22) - Аутентификация и авторизация в Spring Security",
+    "description": "Коллекция запросов для проверки безопасности: Basic Auth, CSRF, роли STUDENT/ADMIN, контекстная авторизация и CRUD/бизнес-операции.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,9 +10,367 @@
       "key": "baseUrl",
       "value": "http://localhost:8080",
       "type": "string"
+    },
+    {
+      "key": "csrfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "vasiliev@university.ru",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "studentEmail",
+      "value": "ivanov@university.ru",
+      "type": "string"
+    },
+    {
+      "key": "studentPassword",
+      "value": "Password123!",
+      "type": "string"
     }
   ],
   "item": [
+    {
+      "name": "0. Безопасность (Auth, CSRF, Роли и Регистрация)",
+      "item": [
+        {
+          "name": "1. Получить CSRF-токен (Автоматически сохраняет в переменную {{csrfToken}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"csrfToken\", jsonData.token);",
+                  "    console.log(\"CSRF Token set: \" + jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/csrf",
+            "description": "Публичный эндпоинт для получения CSRF токена. Тест-скрипт автоматически извлекает токен и сохраняет его в переменную коллекции {{csrfToken}}."
+          }
+        },
+        {
+          "name": "2. Регистрация нового студента (Валидные данные)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Смирнов Илья Сергеевич\",\n  \"email\": \"smirnov_new@university.ru\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Успешная регистрация: пароль надежный, пользователю всегда назначается роль STUDENT."
+          }
+        },
+        {
+          "name": "3. Ошибка регистрации: слабый пароль (400 Bad Request)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Тестовый Пользователь\",\n  \"email\": \"weak_user@university.ru\",\n  \"password\": \"123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Проверка валидации надежности пароля."
+          }
+        },
+        {
+          "name": "4. Ошибка регистрации: дубликат email (409 Conflict)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Иванов Иван\",\n  \"email\": \"ivanov@university.ru\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Проверка уникальности email."
+          }
+        },
+        {
+          "name": "5. Негативный кейс: 401 Unauthorized (без авторизации)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users",
+            "description": "Попытка запросить защищенный ресурс без Basic Auth заголовка."
+          }
+        },
+        {
+          "name": "6. Негативный кейс: 401 Unauthorized (неверный пароль)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "vasiliev@university.ru",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "WrongPassword!",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms"
+          }
+        },
+        {
+          "name": "7. Негативный кейс: 401 Unauthorized (заблокированный аккаунт smirnov@university.ru)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "smirnov@university.ru",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "Password123!",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms",
+            "description": "Проверка account_non_locked = false."
+          }
+        },
+        {
+          "name": "8. Негативный кейс: 403 Forbidden (POST запрос БЕЗ CSRF токена)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomNumber\": \"888-NOCSRF\",\n  \"capacity\": 2,\n  \"isAvailable\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/rooms",
+            "description": "Запрос от администратора, но без заголовка X-XSRF-TOKEN -> 403 Forbidden."
+          }
+        },
+        {
+          "name": "9. Негативный кейс: 403 Forbidden (Студент пытается получить список всех пользователей)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{studentEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{studentPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users",
+            "description": "Ролевой доступ: студенту запрещен вызов эндпоинта администратора."
+          }
+        },
+        {
+          "name": "10. Студент: Просмотр СВОЕГО профиля (id = 1) -> 200 OK",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{studentEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{studentPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/1",
+            "description": "Контекстная авторизация: студент смотрит свой id."
+          }
+        },
+        {
+          "name": "11. Негативный кейс: 403 Forbidden (Студент пытается посмотреть ЧУЖОЙ профиль id = 2)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{studentEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{studentPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/2",
+            "description": "Контекстная авторизация: студент Иванов (id=1) пытается просмотреть Петрова (id=2)."
+          }
+        },
+        {
+          "name": "12. Студент: Создание заявления для СЕБЯ (с CSRF токеном) -> 201 Created",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{studentEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{studentPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"submissionDate\": \"2026-11-06\",\n  \"status\": \"PENDING\"\n}"
+            },
+            "url": "{{baseUrl}}/api/housing-applications",
+            "description": "Успешная подача заявления студентом с передачей X-XSRF-TOKEN."
+          }
+        },
+        {
+          "name": "13. Администратор: Успешное создание комнаты (Basic Auth + CSRF) -> 201 Created",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomNumber\": \"505-POSTMAN\",\n  \"capacity\": 2,\n  \"isAvailable\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/rooms",
+            "description": "Создание комнаты администратором с передачей Basic Auth и CSRF токена."
+          }
+        }
+      ]
+    },
     {
       "name": "1. CRUD — Пользователи (Users)",
       "item": [
@@ -530,5 +888,20 @@
         }
       ]
     }
-  ]
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{adminEmail}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{adminPassword}}",
+        "type": "string"
+      }
+    ]
+  }
 }
