@@ -6,6 +6,7 @@ import com.university.dormitory.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,11 +29,13 @@ public class RoomController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RoomResponseDto> create(@RequestBody RoomRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(roomService.create(dto));
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<RoomResponseDto> update(@PathVariable Long id,
                                                    @RequestBody RoomRequestDto dto) {
         return ResponseEntity.ok(roomService.update(id, dto));
@@ -40,6 +43,7 @@ public class RoomController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long id) {
         roomService.delete(id);
     }

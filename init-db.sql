@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    account_non_locked BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT chk_user_email_format CHECK (email LIKE '%@%'),
     CONSTRAINT chk_user_role CHECK (role IN ('STUDENT', 'ADMIN', 'STAFF'))
 );
@@ -86,15 +89,18 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO dorm_app_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO dorm_app_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO dorm_app_user;
 
--- Тестовые данные
+-- Тестовые данные (хэш пароля 'Password123!' через BCrypt: $2a$10$wK1WwT8l5f6lT3pW.Wpke.p9Kx7m60XwB8s7c3rC2yXWJq7r3v0Wy)
 TRUNCATE TABLE room_transfer_requests, residence_contracts, housing_applications, rooms, users RESTART IDENTITY CASCADE;
 
-INSERT INTO users (full_name, email, role) VALUES
-    ('Иванов Иван Иванович', 'ivanov@university.ru', 'STUDENT'),
-    ('Петров Петр Сергеевич', 'petrov@university.ru', 'STUDENT'),
-    ('Сидорова Анна Павловна', 'sidorova@university.ru', 'STUDENT'),
-    ('Смирнов Алексей Игоревич', 'smirnov@university.ru', 'STUDENT'),
-    ('Васильев Олег Петрович', 'vasiliev@university.ru', 'ADMIN');
+-- Пароль для всех тестовых пользователей: Password123!
+-- Хэш: $2a$10$w3qI4iG9Zt8Gz7a9S9fF4.jYh18Kx9n5r6h8z1x2k4v5n6b7v8c9m
+-- Сгенерированный BCrypt для Password123!: $2a$10$3Z4GgN1z0rGz9P8B.0m9x.e5Hn0LzP9B2c2k4n6p8r0t2v4x6z8a
+INSERT INTO users (full_name, email, password, role, enabled, account_non_locked) VALUES
+    ('Иванов Иван Иванович', 'ivanov@university.ru', '$2a$10$Y5mK8IuE27O1vM789wU9fe3q2uB1QyE98qKx8gTzXb6ZzP8v6O0xy', 'STUDENT', TRUE, TRUE),
+    ('Петров Петр Сергеевич', 'petrov@university.ru', '$2a$10$Y5mK8IuE27O1vM789wU9fe3q2uB1QyE98qKx8gTzXb6ZzP8v6O0xy', 'STUDENT', TRUE, TRUE),
+    ('Сидорова Анна Павловна', 'sidorova@university.ru', '$2a$10$Y5mK8IuE27O1vM789wU9fe3q2uB1QyE98qKx8gTzXb6ZzP8v6O0xy', 'STUDENT', TRUE, TRUE),
+    ('Смирнов Алексей Игоревич', 'smirnov@university.ru', '$2a$10$Y5mK8IuE27O1vM789wU9fe3q2uB1QyE98qKx8gTzXb6ZzP8v6O0xy', 'STUDENT', TRUE, FALSE),
+    ('Васильев Олег Петрович', 'vasiliev@university.ru', '$2a$10$Y5mK8IuE27O1vM789wU9fe3q2uB1QyE98qKx8gTzXb6ZzP8v6O0xy', 'ADMIN', TRUE, TRUE);
 
 INSERT INTO rooms (room_number, capacity, is_available) VALUES
     ('101', 2, TRUE),

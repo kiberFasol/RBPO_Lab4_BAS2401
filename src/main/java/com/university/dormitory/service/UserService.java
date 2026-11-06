@@ -6,6 +6,7 @@ import com.university.dormitory.entity.User;
 import com.university.dormitory.exception.ResourceNotFoundException;
 import com.university.dormitory.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public List<UserResponseDto> findAll() {
         return userRepository.findAll().stream()
@@ -33,7 +35,10 @@ public class UserService {
         User user = User.builder()
                 .fullName(dto.getFullName())
                 .email(dto.getEmail())
-                .role(dto.getRole())
+                .password(passwordEncoder.encode("Default@123"))
+                .role(dto.getRole() != null ? dto.getRole() : "STUDENT")
+                .enabled(true)
+                .accountNonLocked(true)
                 .build();
         return toResponse(userRepository.save(user));
     }
@@ -49,23 +54,20 @@ public class UserService {
 
     @Transactional
     public void delete(Long id) {
-        User user = getOrThrow(id);
-        userRepository.delete(user);
+        userRepository.delete(getOrThrow(id));
     }
 
-    // --- helpers ---
-
-    private User getOrThrow(Long id) {
+    public User getOrThrow(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
-    private UserResponseDto toResponse(User u) {
-        return UserResponseDto.builder()
-                .id(u.getId())
-                .fullName(u.getFullName())
-                .email(u.getEmail())
-                .role(u.getRole())
-                .build();
+    private UserResponseDto toResponse(User user) {
+        return new UserResponseDto(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getRole()
+        );
     }
 }

@@ -1,0 +1,159 @@
+### Переменные окружения
+@baseUrl = http://localhost:8080
+@adminAuth = Basic dmFzaWxpZXZAdW5pdmVyc2l0eS5ydTpwYXNzd29yZA==
+# vasiliev@university.ru : Password123! -> dYXNpbGlldkB1bml2ZXJzaXR5LnJ1OlBhc3N3b3JkMTIzIQ==
+@adminAuthValid = Basic dmFzaWxpZXZAdW5pdmVyc2l0eS5ydTpQYXNzd29yZDEyMyE=
+# ivanov@university.ru : Password123! -> aXZhbm92QHVuaXZlcnNpdHkucnU6UGFzc3dvcmQxMjMh
+@student1Auth = Basic aXZhbm92QHVuaXZlcnNpdHkucnU6UGFzc3dvcmQxMjMh
+# petrov@university.ru : Password123! -> cGV0cm92QHVuaXZlcnNpdHkucnU6UGFzc3dvcmQxMjMh
+@student2Auth = Basic cGV0cm92QHVuaXZlcnNpdHkucnU6UGFzc3dvcmQxMjMh
+# smirnov@university.ru (заблокирован / account locked)
+@lockedStudentAuth = Basic c21pcm5vdkB1bml2ZXJzaXR5LnJ1OlBhc3N3b3JkMTIzIQ==
+
+### ====================================================================
+### 1. CSRF ТОКЕН
+### ====================================================================
+
+# @name getCsrf
+GET {{baseUrl}}/api/csrf
+
+### Сохраняем токен в переменную для последующих запросов
+@csrfToken = {{getCsrf.response.body.token}}
+
+
+### ====================================================================
+### 2. РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЕЙ (/api/auth/register)
+### ====================================================================
+
+### 2.1 Успешная регистрация нового студента (роль всегда STUDENT, эскалация невозможна)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Алексеев Алексей Алексеевич",
+  "email": "alekseev@university.ru",
+  "password": "SecurePassword123!"
+}
+
+### 2.2 Негативный сценарий: Ненадежный пароль (400 Bad Request)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Тестовый Пользователь",
+  "email": "test_weak@university.ru",
+  "password": "123"
+}
+
+### 2.3 Негативный сценарий: Дубликат email (409 Conflict)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Повторный Иванов",
+  "email": "ivanov@university.ru",
+  "password": "SecurePassword123!"
+}
+
+
+### ====================================================================
+### 3. НЕГАТИВНЫЕ СЦЕНАРИИ АУТЕНТИФИКАЦИИ И CSRF
+### ====================================================================
+
+### 3.1 401 Unauthorized: Запрос без аутентификации к защищенному эндпоинту
+GET {{baseUrl}}/api/users
+
+### 3.2 401 Unauthorized: Неверный пароль
+GET {{baseUrl}}/api/rooms
+Authorization: Basic dmFzaWxpZXZAdW5pdmVyc2l0eS5ydTpXcm9uZ1Bhc3Mh
+
+### 3.3 401 Unauthorized: Попытка входа заблокированного аккаунта (isAccountNonLocked = false)
+GET {{baseUrl}}/api/rooms
+Authorization: {{lockedStudentAuth}}
+
+### 3.4 403 Forbidden: Изменяющий POST-запрос БЕЗ CSRF-токена
+POST {{baseUrl}}/api/rooms
+Authorization: {{adminAuthValid}}
+Content-Type: application/json
+
+{
+  "roomNumber": "999-NO-CSRF",
+  "capacity": 2,
+  "isAvailable": true
+}
+
+### 3.5 403 Forbidden: Попытка студента вызвать метод администратора (список всех пользователей)
+GET {{baseUrl}}/api/users
+Authorization: {{student1Auth}}
+
+
+### ====================================================================
+### 4. ПОЗИТИВНЫЕ СЦЕНАРИИ ОТ ИМЕНИ БАЗОВОГО ПОЛЬЗОВАТЕЛЯ (STUDENT)
+### ====================================================================
+
+### 4.1 Студент Иванов: Просмотр доступных комнат (GET не требует CSRF)
+GET {{baseUrl}}/api/rooms
+Authorization: {{student1Auth}}
+
+### 4.2 Студент Иванов: Просмотр СВОИХ данных пользователя (id = 1) -> Успешно 200 OK
+GET {{baseUrl}}/api/users/1
+Authorization: {{student1Auth}}
+
+### 4.3 Студент Иванов: Попытка посмотреть ЧУЖИЕ данные пользователя (Петров id = 2) -> 403 Forbidden
+GET {{baseUrl}}/api/users/2
+Authorization: {{student1Auth}}
+
+### 4.4 Студент Иванов: Подача заявки на общежитие для СЕБЯ (с Basic Auth + X-XSRF-TOKEN) -> 201 Created
+POST {{baseUrl}}/api/housing-applications
+Authorization: {{student1Auth}}
+X-XSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+Cookie: XSRF-TOKEN={{csrfToken}}
+
+{
+  "userId": 1,
+  "submissionDate": "2026-11-06",
+  "status": "PENDING"
+}
+
+### 4.5 Студент Иванов: Попытка создать заявку от чужого имени (userId = 2) -> 403 Forbidden
+POST {{baseUrl}}/api/housing-applications
+Authorization: {{student1Auth}}
+X-XSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+Cookie: XSRF-TOKEN={{csrfToken}}
+
+{
+  "userId": 2,
+  "submissionDate": "2026-11-06",
+  "status": "PENDING"
+}
+
+
+### ====================================================================
+### 5. ПОЗИТИВНЫЕ СЦЕНАРИИ ОТ ИМЕНИ АДМИНИСТРАТОРА (ADMIN)
+### ====================================================================
+
+### 5.1 Администратор: Просмотр списка всех пользователей системы -> 200 OK
+GET {{baseUrl}}/api/users
+Authorization: {{adminAuthValid}}
+
+### 5.2 Администратор: Создание новой комнаты (с Basic Auth + X-XSRF-TOKEN) -> 201 Created
+POST {{baseUrl}}/api/rooms
+Authorization: {{adminAuthValid}}
+X-XSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+Cookie: XSRF-TOKEN={{csrfToken}}
+
+{
+  "roomNumber": "404-SEC",
+  "capacity": 3,
+  "isAvailable": true
+}
+
+### 5.3 Администратор: Выполнение регламентной бизнес-операции закрытия договоров
+POST {{baseUrl}}/api/operations/contracts/process-expirations?asOfDate=2026-11-06
+Authorization: {{adminAuthValid}}
+X-XSRF-TOKEN: {{csrfToken}}
+Cookie: XSRF-TOKEN={{csrfToken}}
+
