@@ -70,12 +70,26 @@ CREATE TABLE IF NOT EXISTS room_transfer_requests (
     CONSTRAINT chk_transfer_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
 );
 
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    refresh_token_id VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    device_id VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT chk_session_status CHECK (status IN ('ACTIVE', 'USED', 'REVOKED'))
+);
+
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_contracts_room_status ON residence_contracts(room_id, status);
 CREATE INDEX IF NOT EXISTS idx_contracts_app ON residence_contracts(application_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_dates ON residence_contracts(check_out_date, status);
 CREATE INDEX IF NOT EXISTS idx_applications_user_status ON housing_applications(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_transfers_contract_status ON room_transfer_requests(contract_id, status);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_refresh_token ON user_sessions(refresh_token_id);
 
 -- Настройка прав: пользователю сервиса даем только DML (чтение и запись данных)
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;

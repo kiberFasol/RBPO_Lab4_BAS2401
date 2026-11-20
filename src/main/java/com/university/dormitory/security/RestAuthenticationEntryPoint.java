@@ -31,7 +31,7 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", HttpStatus.UNAUTHORIZED.value());
         body.put("error", "Unauthorized");
-        body.put("message", "Требуется аутентификация: неверные учетные данные или отсутствует заголовок авторизации");
+        body.put("message", "Требуется аутентификация: отсутствует или недействителен Bearer-токен");
         body.put("path", request.getRequestURI());
 
         response.getWriter().write(objectMapper.writeValueAsString(body));

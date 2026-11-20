@@ -1,7 +1,6 @@
 package com.university.dormitory.controller;
 
-import com.university.dormitory.dto.RegisterRequestDto;
-import com.university.dormitory.dto.UserResponseDto;
+import com.university.dormitory.dto.*;
 import com.university.dormitory.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +11,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Контроллер аутентификации:
+ * - POST /api/auth/register — регистрация (сразу возвращает пару токенов)
+ * - POST /api/auth/login    — вход по email/password
+ * - POST /api/auth/refresh  — обновление пары по refresh-токену
+ */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -20,8 +25,17 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponseDto> register(@Valid @RequestBody RegisterRequestDto dto) {
+    public ResponseEntity<AuthenticationResponse> register(@Valid @RequestBody RegisterRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(dto));
     }
-}
 
+    @PostMapping("/login")
+    public ResponseEntity<AuthenticationResponse> login(@Valid @RequestBody AuthenticationRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthenticationResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
+    }
+}

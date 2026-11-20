@@ -31,7 +31,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", HttpStatus.FORBIDDEN.value());
         body.put("error", "Forbidden");
-        body.put("message", "Доступ запрещен: недостаточно привилегий или недействительный CSRF-токен");
+        body.put("message", "Доступ запрещен: недостаточно привилегий");
         body.put("path", request.getRequestURI());
 
         response.getWriter().write(objectMapper.writeValueAsString(body));

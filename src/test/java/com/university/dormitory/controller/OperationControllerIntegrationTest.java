@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -71,7 +70,6 @@ class OperationControllerIntegrationTest {
     @DisplayName("Операция 4 (интеграция): вызов регламентного закрытия договоров администратором")
     void processExpirations_ReturnsSuccess() throws Exception {
         mockMvc.perform(post("/api/operations/contracts/process-expirations")
-                        .with(csrf())
                         .param("asOfDate", LocalDate.now().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiredContractsCount").isNumber())
@@ -90,7 +88,6 @@ class OperationControllerIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/operations/check-in")
-                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -98,19 +95,11 @@ class OperationControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin@university.ru", roles = {"ADMIN"})
-    @DisplayName("Безопасность: отказ без CSRF токена на POST запрос (403 Forbidden)")
-    void checkIn_WithoutCsrf_ReturnsForbidden() throws Exception {
-        CheckInRequestDto dto = CheckInRequestDto.builder()
-                .applicationId(3L)
-                .roomId(1L)
-                .checkInDate(LocalDate.now().plusMonths(2))
-                .checkOutDate(LocalDate.now().plusMonths(1))
-                .build();
-
-        mockMvc.perform(post("/api/operations/check-in")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+    @WithMockUser(username = "student@university.ru", roles = {"STUDENT"})
+    @DisplayName("Безопасность: студент не имеет доступа к операциям (403 Forbidden)")
+    void operations_WithStudentRole_ReturnsForbidden() throws Exception {
+        mockMvc.perform(post("/api/operations/contracts/process-expirations")
+                        .param("asOfDate", LocalDate.now().toString()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.error").value("Forbidden"));
